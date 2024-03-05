@@ -13,6 +13,7 @@
 
 # Binaries
 cmd/gophermart/main
+cmd/gophermart/server
 cmd/gophermart/gophermart
 
 # Dependency directories (remove the comment below to include it)

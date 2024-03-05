@@ -27,15 +27,14 @@ type Server struct {
 	views *handlers.ServerViews
 }
 
-func NewServer(serverAddr string, store storage.Store) *Server {
+func NewServer(serverAddr string, store storage.Store, secretKey string) *Server {
 	return &Server{
 		srv:   &http.Server{Addr: serverAddr},
-		views: handlers.NewServerViews(service.NewService(store)),
+		views: handlers.NewServerViews(service.NewService(store, secretKey)),
 	}
 }
 
 func (s *Server) InitRouter() {
-
 	r := chi.NewRouter()
 
 	r.Use(middleware.RealIP)
@@ -111,7 +110,14 @@ func Run() {
 	}
 
 	store, err = storage.NewDBStorage(conn, true, 3, 1)
-	server := NewServer(cfg.ServerAddress, store)
+	if cfg.SecretKey == "" {
+		cfg.SecretKey, err = store.GetKey()
+		if err != nil {
+			logger.Log.Error("get secret key failed", zap.Error(err))
+			return
+		}
+	}
+	server := NewServer(cfg.ServerAddress, store, cfg.SecretKey)
 
 	server.InitRouter()
 

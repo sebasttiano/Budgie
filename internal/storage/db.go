@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
@@ -12,6 +13,23 @@ import (
 )
 
 var pgError *pgconn.PgError
+
+type DBError struct {
+	Code string
+	Err  error
+}
+
+func (e DBError) Error() string {
+	return fmt.Sprintf("db failed with code: %s. message: %v", e.Code, e.Err)
+}
+
+func (e DBError) Unwrap() error {
+	return e.Err
+}
+
+func NewDBError(err error, code string) *DBError {
+	return &DBError{code, err}
+}
 
 // DBStorage Keeps data in database
 type DBStorage struct {
@@ -36,7 +54,7 @@ func NewDBStorage(conn *sqlx.DB, bootstrap bool, retries uint, backoffFactor uin
 			return nil, err
 		}
 	}
-	return &DBStorage{conn: conn}, nil
+	return db, nil
 }
 
 // Bootstrap creates tables in DB
@@ -75,13 +93,13 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
 		return err
 	}
 
-	// create table for gauge metrics
+	// create table users
 	if _, err := tx.ExecContext(ctx, `
         CREATE TABLE IF NOT EXISTS users (
             id serial PRIMARY KEY,
             login varchar(128) NOT NULL, 
 			password varchar(128) NOT NULL,
-            balance numeric(10,2),
+			registered_at timestamp without time zone NOT NULL,
 	       	UNIQUE(login) 
         )
 	`); err != nil {
@@ -89,7 +107,21 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
 		tx.Rollback()
 		return err
 	} else {
-		logger.Log.Info("created users table")
+		logger.Log.Info("table users OK!")
+	}
+
+	// create table balance
+	if _, err := tx.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS balance (
+		    user_id integer REFERENCES users (id) ON DELETE CASCADE,
+		    balance numeric(10,2)
+		) 
+	`); err != nil {
+		logger.Log.Error("failed to create balance table", zap.Error(err))
+		tx.Rollback()
+		return err
+	} else {
+		logger.Log.Info("table balance OK!")
 	}
 
 	// create table for orders
@@ -108,9 +140,43 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
 		tx.Rollback()
 		return err
 	} else {
-		logger.Log.Info("created orders table")
+		logger.Log.Info("table orders OK!")
+	}
+
+	// create table secret
+	if _, err := tx.ExecContext(ctx, `
+	   CREATE TABLE IF NOT EXISTS secrets (
+	       secret varchar(128) NOT NULL
+	   )
+	`); err != nil {
+		logger.Log.Error("failed to create secrets table", zap.Error(err))
+		tx.Rollback()
+		return err
+	} else {
+		logger.Log.Info("table secrets OK!")
 	}
 
 	// commit
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	// Set one row table secrets
+	if _, err := d.conn.ExecContext(ctx, `CREATE UNIQUE INDEX one_row_only_uidx ON secrets (( true ))`); err != nil && errors.As(err, &pgError) {
+		if pgError.Code == pgerrcode.DuplicateTable {
+			logger.Log.Debug("index one_row_only_uidx already exists. going on")
+		} else {
+			logger.Log.Error("failed to index one_row_only_uidx", zap.Error(err))
+			return err
+		}
+	}
+	// Generate random secret key if doesn`t exist
+	if _, err := d.conn.ExecContext(ctx, `
+			INSERT INTO secrets (secret) VALUES ((SELECT MD5(random()::text))) ON CONFLICT DO NOTHING;
+		`); err != nil {
+		logger.Log.Error("failed to generate secret key in secrets table", zap.Error(err))
+		return err
+	}
+
+	return nil
 }

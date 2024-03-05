@@ -8,14 +8,14 @@ import (
 )
 
 // marshalResponse to json
-func marshalResponse(res http.ResponseWriter, code int, v any) {
+func makeResponse(w http.ResponseWriter, code int, v any) {
 
-	res.Header().Add("Content-Type", "application/json")
-	res.WriteHeader(code)
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(code)
 
-	enc := json.NewEncoder(res)
+	enc := json.NewEncoder(w)
 	if err := enc.Encode(v); err != nil {
 		logger.Log.Error("error encoding response", zap.Error(err))
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

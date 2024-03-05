@@ -10,6 +10,7 @@ type Config struct {
 	DatabaseURI    string `env:"DATABASE_URI"`
 	AccrualAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	LogLevel       string `env:"LOG_LEVEL"`
+	SecretKey      string `env:"SECRET_KEY" default:""`
 }
 
 func NewConfig() (Config, error) {
