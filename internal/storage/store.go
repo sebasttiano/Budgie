@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/sebasttiano/Budgie/internal/common"
 	"github.com/sebasttiano/Budgie/internal/logger"
 	"github.com/sebasttiano/Budgie/internal/models"
@@ -11,9 +12,11 @@ import (
 	"time"
 )
 
+var ErrDBNoRows = errors.New("sql: no rows in result set")
+
 type Store interface {
 	UserExists(ctx context.Context, login string) (bool, error)
-	GetUserByID(ctx context.Context, id int) (*models.User, error)
+	GetUser(ctx context.Context, user *models.User) error
 	AddUser(ctx context.Context, user *models.User) error
 	GetKey() (string, error)
 }
@@ -49,19 +52,17 @@ func (d *DBStorage) UserExists(ctx context.Context, login string) (bool, error) 
 	return true, nil
 }
 
-func (d *DBStorage) GetUserByID(ctx context.Context, id int) (*models.User, error) {
+func (d *DBStorage) GetUser(ctx context.Context, user *models.User) error {
 
-	u := &models.User{}
-	//sqlSelect := `SELECT id, login, password, registered_at FROM users WHERE id = $1`
-	//
-	//if err := p.conn.GetContext(ctx, metric, sqlSelect, metric.Name); err != nil {
-	//	if errors.Is(err, sql.ErrNoRows) {
-	//		return metric, p.Errors.ErrNoRows
-	//	} else {
-	//		return nil, err
-	//	}
-	//}
-	return u, nil
+	sqlSelect := `SELECT id, login, password FROM users WHERE login = $1`
+
+	if err := d.conn.GetContext(ctx, user, sqlSelect, user.Login); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("user not found, %w", ErrDBNoRows)
+		}
+		return err
+	}
+	return nil
 }
 
 func (d *DBStorage) AddUser(ctx context.Context, user *models.User) error {

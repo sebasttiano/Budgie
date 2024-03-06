@@ -68,32 +68,32 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 // GzipMiddleware handles compressed with gzip requests and responses
 func GzipMiddleware(next http.Handler) http.Handler {
 
-	gzipFn := func(res http.ResponseWriter, req *http.Request) {
+	gzipFn := func(w http.ResponseWriter, r *http.Request) {
 
-		ow := res
+		ow := w
 
-		acceptEncoding := req.Header.Get("Accept-Encoding")
+		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
-			cw := common.NewGZIPWriter(res)
+			cw := common.NewGZIPWriter(w)
 			ow = cw
 			defer cw.Close()
 		}
 
-		contentEncoding := req.Header.Get("Content-Encoding")
+		contentEncoding := r.Header.Get("Content-Encoding")
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
 		if sendsGzip {
-			cr, err := common.NewZIPReader(req.Body)
+			cr, err := common.NewZIPReader(r.Body)
 			if err != nil {
 				logger.Log.Error("couldn`t decompress request")
-				res.WriteHeader(http.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			req.Body = cr
+			r.Body = cr
 			defer cr.Close()
 		}
 
-		next.ServeHTTP(ow, req)
+		next.ServeHTTP(ow, r)
 	}
 	return http.HandlerFunc(gzipFn)
 }
