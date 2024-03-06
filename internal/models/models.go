@@ -1,5 +1,17 @@
 package models
 
+import "time"
+
+const (
+	OrderStatusRegistered = "REGISTERED"
+	OrderStatusInvalid    = "INVALID"
+	OrderStatusProcessing = "PROCESSING"
+	OrderStatusProcessed  = "PROCESSED"
+
+	OrderActionAdd      = "add"
+	OrderActionWithdraw = "withdraw"
+)
+
 type User struct {
 	ID           int
 	Login        string `json:"login" valid:"required,type(string)"`
@@ -8,13 +20,13 @@ type User struct {
 }
 
 type Order struct {
-	ID          string `json:"id"`
-	UserID      string `json:"user_id,omitempty"`
-	Action      string `json:"action,omitempty"`
-	Status      string
-	Accrual     string
-	UploadAt    string
-	ProcessedAt string
+	ID          int       `db:"id"`
+	UserID      int       `db:"user_id,omitempty"`
+	Action      string    `db:"action,omitempty"`
+	Status      string    `db:"status,omitempty"`
+	Accrual     float32   `db:"accrual,omitempty"`
+	UploadAt    time.Time `db:"upload_at,omitempty"`
+	ProcessedAt time.Time `db:"processed_at,omitempty"`
 }
 
 type Secret struct {

@@ -24,7 +24,7 @@ type Server struct {
 	JWTWare *jwtmiddleware.JWTMiddleware
 }
 
-func NewServer(serverAddr string, store storage.Store, secretKey string) *Server {
+func NewServer(serverAddr string, store storage.Storer, secretKey string) *Server {
 	keyFunc := func(ctx context.Context) (interface{}, error) {
 		return []byte(secretKey), nil
 	}

@@ -10,8 +10,7 @@ import (
 
 var ErrTokenCreationFailed = errors.New("token creation failed")
 
-// Claims — структура утверждений, которая включает стандартные утверждения и
-// одно пользовательское UserID
+// Claims — struct with standart and customs claims
 type Claims struct {
 	jwt.RegisteredClaims
 	ID int `json:"id"`
@@ -19,13 +18,11 @@ type Claims struct {
 
 const TokenExp = time.Hour * 3
 
-// BuildJWTString создаёт токен и возвращает его в виде строки.
+// BuildJWTString creates token and returns it via string.
 func BuildJWTString(id int, secretKey string) (string, error) {
-	// создаём новый токен с алгоритмом подписи HS256 и утверждениями — Claims
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			// когда создан токен
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TokenExp)),
 			Subject:   strconv.Itoa(id),
 			Issuer:    "localhost:8080/api/user/login",
@@ -34,12 +31,10 @@ func BuildJWTString(id int, secretKey string) (string, error) {
 		ID: id,
 	})
 
-	// создаём строку токена
 	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrTokenCreationFailed, err)
 	}
 
-	// возвращаем строку токена
 	return tokenString, nil
 }

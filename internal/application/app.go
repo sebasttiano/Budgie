@@ -29,7 +29,7 @@ func Run() {
 		return
 	}
 
-	var store storage.Store
+	var store storage.Storer
 	var conn *sqlx.DB
 	if cfg.DatabaseURI != "" {
 		conn, err = sqlx.Connect("pgx", cfg.DatabaseURI)

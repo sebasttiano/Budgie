@@ -131,9 +131,9 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
 		   user_id integer REFERENCES users(id) ON DELETE CASCADE,
 	       status order_status NOT NULL,
 	       action order_actions NOT NULL,
-	       accural numeric(10,2),
+	       accrual numeric(10,2),
 	       upload_at timestamp without time zone NOT NULL,
-	       processed_at timestamp without time zone NOT NULL
+	       processed_at timestamp without time zone
 	   )
 	`); err != nil {
 		logger.Log.Error("failed to create orders table", zap.Error(err))
