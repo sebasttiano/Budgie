@@ -114,7 +114,9 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
 	if _, err := tx.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS balance (
 		    user_id integer REFERENCES users (id) ON DELETE CASCADE,
-		    balance numeric(10,2)
+		    balance numeric(10,2) DEFAULT 0.00,
+		    withdrawn numeric(10,2) DEFAULT 0.00,
+		    UNIQUE(user_id)
 		) 
 	`); err != nil {
 		logger.Log.Error("failed to create balance table", zap.Error(err))

@@ -13,9 +13,11 @@ func makeResponse(w http.ResponseWriter, code int, v any) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 
-	enc := json.NewEncoder(w)
-	if err := enc.Encode(v); err != nil {
-		logger.Log.Error("error encoding response", zap.Error(err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if code != http.StatusNoContent {
+		enc := json.NewEncoder(w)
+		if err := enc.Encode(v); err != nil {
+			logger.Log.Error("error encoding response", zap.Error(err))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }

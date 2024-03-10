@@ -20,7 +20,7 @@ var (
 	ErrOrderValidationNumber  = errors.New("invalid format of order number")
 )
 
-func (s *ServerViews) LoadOrder(w http.ResponseWriter, r *http.Request) {
+func (s *ServerViews) UploadOrder(w http.ResponseWriter, r *http.Request) {
 
 	if r.Header.Get("Content-Type") != "text/plain" {
 		logger.Log.Error("got request with wrong header", zap.String("Content-Type", r.Header.Get("Content-Type")))
@@ -41,23 +41,23 @@ func (s *ServerViews) LoadOrder(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrOrderValidationRequest):
-			logger.Log.Error("load order error: ", zap.Error(err))
+			logger.Log.Error("upload order error: ", zap.Error(err))
 			makeResponse(w, http.StatusBadRequest, err.Error())
 			return
 		case errors.Is(err, ErrOrderValidationNumber):
-			logger.Log.Error("load order error: ", zap.Error(err))
+			logger.Log.Error("upload order error: ", zap.Error(err))
 			makeResponse(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		case errors.Is(err, service.ErrOrderAnotherUser):
-			logger.Log.Error("load order error: ", zap.Error(err))
+			logger.Log.Error("upload order error: ", zap.Error(err))
 			makeResponse(w, http.StatusConflict, "order already passed by another user")
 			return
 		case errors.Is(err, service.ErrOrderAlreadyExist):
-			logger.Log.Error("load order error: ", zap.Error(err))
+			logger.Log.Error("upload order error: ", zap.Error(err))
 			makeResponse(w, http.StatusOK, "order already downloaded")
 			return
 		default:
-			logger.Log.Error("load order error: ", zap.Error(err))
+			logger.Log.Error("upload order error: ", zap.Error(err))
 			makeResponse(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -72,7 +72,7 @@ func (s *ServerViews) LoadOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.serv.SaveOrder(ctx, order); err != nil {
-		logger.Log.Error("load order error: ", zap.Error(err))
+		logger.Log.Error("upload order error: ", zap.Error(err))
 		makeResponse(w, http.StatusInternalServerError, service.ErrOrderSave.Error())
 		return
 	}
@@ -88,6 +88,27 @@ func (s *ServerViews) LoadOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ServerViews) GetOrders(w http.ResponseWriter, r *http.Request) {
+
+	payload, err := GetTokenPayload(r)
+	if err != nil {
+		logger.Log.Error("token payload error: ", zap.Error(err))
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	userOrders, err := s.serv.GetAllUserOrders(ctx, payload.UserID)
+	if err != nil {
+		if errors.Is(err, service.ErrNoUserOrders) {
+			logger.Log.Debug(err.Error())
+			makeResponse(w, http.StatusNoContent, nil)
+			return
+		}
+		logger.Log.Error("error ", zap.Error(err))
+		makeResponse(w, http.StatusInternalServerError, "load users orders failed")
+		return
+	}
+	makeResponse(w, http.StatusOK, userOrders)
 
 }
 

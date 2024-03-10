@@ -19,6 +19,7 @@ var (
 	ErrOrderAnotherUser      = errors.New("order belongs to other user")
 	ErrOrderAlreadyExist     = errors.New("order already exist")
 	ErrOrderSave             = errors.New("order save failed")
+	ErrNoUserOrders          = errors.New("user has no any orders")
 )
 
 type Authenticator interface {
@@ -121,4 +122,18 @@ func (s *Service) ProccessOrder(ctx context.Context, o *models.Order) error {
 	s.pools.MainPool.AddWork(task)
 
 	return nil
+}
+
+func (s *Service) GetAllUserOrders(ctx context.Context, userID int) ([]*models.Order, error) {
+
+	userOrders, err := s.Store.GetAllUserOrders(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(userOrders) == 0 {
+		return nil, fmt.Errorf("%w, user id: %d", ErrNoUserOrders, userID)
+
+	}
+	return userOrders, nil
 }

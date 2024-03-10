@@ -20,6 +20,8 @@ type Storer interface {
 	GetKey() (string, error)
 	GetOrder(ctx context.Context, order *models.Order, number int) error
 	SetOrder(ctx context.Context, order *models.Order) error
+	GetAllUserOrders(ctx context.Context, userID int) ([]*models.Order, error)
+	SetBalance(ctx context.Context, balance *models.UserBalance) error
 }
 
 func (d *DBStorage) GetKey() (string, error) {
@@ -79,6 +81,7 @@ func (d *DBStorage) AddUser(ctx context.Context, user *models.User) error {
 		return err
 	}
 
+	// create new user
 	sqlInsert := `INSERT INTO users (login, password) VALUES ($1, $2) RETURNING id`
 
 	var id int
@@ -87,6 +90,12 @@ func (d *DBStorage) AddUser(ctx context.Context, user *models.User) error {
 		return err
 	}
 	user.ID = id
+
+	// create balance for user
+	slqInsertBalance := `INSERT INTO balance (user_id) VALUES ($1)`
+	if _, err := tx.ExecContext(ctx, slqInsertBalance, user.ID); err != nil {
+		tx.Rollback()
+	}
 
 	tx.Commit()
 	return nil
@@ -113,15 +122,60 @@ func (d *DBStorage) SetOrder(ctx context.Context, order *models.Order) error {
 		return err
 	}
 
+	var userID int
 	sqlInsert := `INSERT INTO orders (id, user_id, status, action, accrual)
                       VALUES ($1, $2, $3, $4, $5)
                       ON CONFLICT (id) DO UPDATE
-                      SET status = excluded.status, action = excluded.action, accrual = excluded.accrual, processed_at = now();`
+                      SET status = excluded.status, action = excluded.action, accrual = excluded.accrual, processed_at = now()
+                      RETURNING user_id;`
 
-	if _, err := tx.ExecContext(ctx, sqlInsert, order.ID, order.UserID, order.Status, order.Action, order.Accrual); err != nil {
+	if err := tx.GetContext(ctx, &userID, sqlInsert, order.ID, order.UserID, order.Status, order.Action, order.Accrual); err != nil {
 		tx.Rollback()
 		return err
 	}
 
+	// increase balance
+	if order.Status == models.OrderStatusProcessed && order.Action == models.OrderActionAdd {
+		balance := &models.UserBalance{UserID: userID, Balance: order.Accrual}
+		if err := d.SetBalance(ctx, balance); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (d *DBStorage) GetAllUserOrders(ctx context.Context, userID int) ([]*models.Order, error) {
+
+	var allOrders []*models.Order
+	sqlSelect := `SELECT id, user_id, status, action, accrual, upload_at
+					FROM orders
+					WHERE user_id = $1 AND status IN ($2, $3, $4, $5)
+					ORDER BY upload_at`
+
+	if err := d.conn.SelectContext(ctx, &allOrders, sqlSelect, userID, models.OrderStatusNew, models.OrderStatusProcessing, models.OrderStatusInvalid, models.OrderStatusProcessed); err != nil {
+		return nil, err
+	}
+	return allOrders, nil
+
+}
+
+func (d *DBStorage) SetBalance(ctx context.Context, balance *models.UserBalance) error {
+
+	tx, err := d.conn.Beginx()
+	if err != nil {
+		return err
+	}
+	fmt.Println(balance)
+	sqlInsert := `INSERT INTO balance (user_id, balance, withdrawn)
+					VALUES ($1, $2, $3)
+					ON CONFLICT (user_id) DO UPDATE 
+					SET balance = balance.balance + excluded.balance, withdrawn = balance.withdrawn + excluded.withdrawn`
+
+	if _, err := tx.ExecContext(ctx, sqlInsert, balance.UserID, balance.Balance, balance.Withdrawn); err != nil {
+		tx.Rollback()
+		return err
+	}
 	return tx.Commit()
 }

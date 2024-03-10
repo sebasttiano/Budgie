@@ -57,7 +57,7 @@ func (s *Server) InitRouter() {
 		r.Use(handlers.WithLogging, handlers.GzipMiddleware)
 		r.Method(http.MethodPost, "/register", http.HandlerFunc(s.views.UserRegister))
 		r.Method(http.MethodPost, "/login", http.HandlerFunc(s.views.UserLogin))
-		r.Method(http.MethodPost, "/orders", s.JWTWare.CheckJWT(http.HandlerFunc(s.views.LoadOrder)))
+		r.Method(http.MethodPost, "/orders", s.JWTWare.CheckJWT(http.HandlerFunc(s.views.UploadOrder)))
 		r.Method(http.MethodGet, "/orders", s.JWTWare.CheckJWT(http.HandlerFunc(s.views.GetOrders)))
 		r.Route("/balance/", func(r chi.Router) {
 			r.Method(http.MethodGet, "/", s.JWTWare.CheckJWT(http.HandlerFunc(s.views.GetBalance)))
