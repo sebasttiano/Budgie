@@ -9,11 +9,13 @@ import (
 	"github.com/sebasttiano/Budgie/internal/logger"
 	"github.com/sebasttiano/Budgie/internal/server"
 	"github.com/sebasttiano/Budgie/internal/storage"
+	"github.com/sebasttiano/Budgie/internal/worker"
 	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 func Run() {
@@ -43,7 +45,6 @@ func Run() {
 		logger.Log.Error("error. you must specify database uri ")
 		os.Exit(1)
 	}
-	fmt.Println(cfg.ServerAddress)
 	store, err = storage.NewDBStorage(conn, true, 3, 1)
 	if cfg.SecretKey == "" {
 		cfg.SecretKey, err = store.GetKey()
@@ -52,7 +53,27 @@ func Run() {
 			return
 		}
 	}
-	srv := server.NewServer(cfg.ServerAddress, store, cfg.SecretKey)
+
+	// Init pools
+	pool, err := worker.NewWorkerPool(cfg.WorkerNumber, cfg.TaskChannelSize)
+	if err != nil {
+		logger.Log.Error("start worker pool failed", zap.Error(err))
+		return
+	}
+
+	awaitPool, err := worker.NewWaitingPool(cfg.WorkerNumber, cfg.TaskChannelSize, 3*time.Second)
+	if err != nil {
+		logger.Log.Error("start await pool failed", zap.Error(err))
+		return
+	}
+
+	pool.Start()
+	defer pool.Stop()
+
+	awaitPool.Start()
+	defer awaitPool.Stop()
+
+	srv := server.NewServer(cfg.ServerAddress, store, pool, awaitPool, cfg.SecretKey, cfg.AccrualAddress)
 
 	srv.InitRouter()
 

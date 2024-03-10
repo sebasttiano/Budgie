@@ -63,7 +63,7 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
 	logger.Log.Debug("checking db tables")
 	// create types
 	if _, err := d.conn.ExecContext(ctx, `
-		CREATE TYPE order_status AS ENUM ('REGISTERED', 'INVALID', 'PROCESSING', 'PROCESSED')
+		CREATE TYPE order_status AS ENUM ('NEW', 'PROCESSING', 'INVALID', 'PROCESSED', 'ERROR')
 	`); err != nil && errors.As(err, &pgError) {
 		if pgError.Code == pgerrcode.DuplicateObject {
 			logger.Log.Debug("type order_status already exists. going on")
@@ -99,7 +99,7 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
             id serial PRIMARY KEY,
             login varchar(128) NOT NULL, 
 			password varchar(128) NOT NULL,
-			registered_at timestamp without time zone NOT NULL,
+			registered_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	       	UNIQUE(login) 
         )
 	`); err != nil {
@@ -127,13 +127,13 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
 	// create table for orders
 	if _, err := tx.ExecContext(ctx, `
 	   CREATE TABLE IF NOT EXISTS orders (
-	       id integer PRIMARY KEY,
-		   user_id integer REFERENCES users(id) ON DELETE CASCADE,
+	       id bigint PRIMARY KEY,
+		   user_id bigint REFERENCES users(id) ON DELETE CASCADE,
 	       status order_status NOT NULL,
 	       action order_actions NOT NULL,
 	       accrual numeric(10,2),
-	       upload_at timestamp without time zone NOT NULL,
-	       processed_at timestamp without time zone
+	       upload_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	       processed_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
 	   )
 	`); err != nil {
 		logger.Log.Error("failed to create orders table", zap.Error(err))

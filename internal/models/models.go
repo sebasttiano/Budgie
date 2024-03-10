@@ -3,10 +3,11 @@ package models
 import "time"
 
 const (
-	OrderStatusRegistered = "REGISTERED"
-	OrderStatusInvalid    = "INVALID"
+	OrderStatusNew        = "NEW"
 	OrderStatusProcessing = "PROCESSING"
+	OrderStatusInvalid    = "INVALID"
 	OrderStatusProcessed  = "PROCESSED"
+	OrderStatusError      = "ERROR"
 
 	OrderActionAdd      = "add"
 	OrderActionWithdraw = "withdraw"

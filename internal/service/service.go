@@ -8,6 +8,9 @@ import (
 	"github.com/sebasttiano/Budgie/internal/logger"
 	"github.com/sebasttiano/Budgie/internal/models"
 	"github.com/sebasttiano/Budgie/internal/storage"
+	"github.com/sebasttiano/Budgie/internal/tasks"
+	"github.com/sebasttiano/Budgie/internal/worker"
+	"strconv"
 )
 
 var (
@@ -23,15 +26,29 @@ type Authenticator interface {
 	Login(ctx context.Context, u *models.User) (string, error)
 }
 
-type Service struct {
-	Store     storage.Storer
-	secretKey string
+type ServiceSettings struct {
+	Key         string
+	HTTPRetries int
+	AccuralURL  string
+	workerPool,
+	awaitPool worker.Pool
 }
 
-func NewService(store storage.Storer, secretKey string) *Service {
+type ServicePools struct {
+	MainPool,
+	AwaitPool worker.Pool
+}
+type Service struct {
+	Store    storage.Storer
+	settings *ServiceSettings
+	pools    *ServicePools
+}
+
+func NewService(store storage.Storer, settings *ServiceSettings, pools *ServicePools) *Service {
 	return &Service{
-		Store:     store,
-		secretKey: secretKey,
+		Store:    store,
+		settings: settings,
+		pools:    pools,
 	}
 }
 
@@ -41,7 +58,7 @@ func (s *Service) Register(ctx context.Context, u *models.User) (string, error) 
 		return "", fmt.Errorf("%w: user %s error: %v", ErrUserRegisrationFailed, u.Login, err)
 	}
 
-	token, err := common.BuildJWTString(u.ID, s.secretKey)
+	token, err := common.BuildJWTString(u.ID, s.settings.Key)
 	if err != nil {
 		return "", err
 	}
@@ -69,7 +86,7 @@ func (s *Service) Login(ctx context.Context, u *models.User) (string, error) {
 
 	logger.Log.Info(fmt.Sprintf("user %s login succesfully", u.Login))
 
-	return common.BuildJWTString(u.ID, s.secretKey)
+	return common.BuildJWTString(u.ID, s.settings.Key)
 }
 
 func (s *Service) CheckOrder(ctx context.Context, number int, user int) error {
@@ -78,11 +95,10 @@ func (s *Service) CheckOrder(ctx context.Context, number int, user int) error {
 	if err := s.Store.GetOrder(ctx, &order, number); err != nil {
 		if errors.Is(err, storage.ErrDBNoRows) {
 			return nil
+		} else {
+			return err
 		}
-	} else {
-		return err
 	}
-	fmt.Println(order)
 	if order.UserID != user {
 		return fmt.Errorf("check order error: %w", ErrOrderAnotherUser)
 	} else {
@@ -95,6 +111,14 @@ func (s *Service) SaveOrder(ctx context.Context, o *models.Order) error {
 	if err := s.Store.SetOrder(ctx, o); err != nil {
 		return fmt.Errorf("order with number %d error: %w. reason: %v", o.ID, ErrOrderSave, err)
 	}
+
+	return nil
+}
+
+func (s *Service) ProccessOrder(ctx context.Context, o *models.Order) error {
+
+	task := tasks.NewProcessOrder(s.settings.AccuralURL, s.settings.HTTPRetries, strconv.Itoa(o.ID), s.Store, s.pools.AwaitPool)
+	s.pools.MainPool.AddWork(task)
 
 	return nil
 }

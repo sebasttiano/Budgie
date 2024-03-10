@@ -30,7 +30,7 @@ func (s *ServerViews) LoadOrder(w http.ResponseWriter, r *http.Request) {
 
 	payload, err := GetTokenPayload(r)
 	if err != nil {
-		logger.Log.Error("load order error: ", zap.Error(err))
+		logger.Log.Error("token payload error: ", zap.Error(err))
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
@@ -66,7 +66,7 @@ func (s *ServerViews) LoadOrder(w http.ResponseWriter, r *http.Request) {
 	order := &models.Order{
 		ID:      number,
 		UserID:  payload.UserID,
-		Status:  models.OrderStatusRegistered,
+		Status:  models.OrderStatusNew,
 		Action:  models.OrderActionAdd,
 		Accrual: 0.00,
 	}
@@ -77,9 +77,14 @@ func (s *ServerViews) LoadOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := s.serv.ProccessOrder(ctx, order); err != nil {
+		logger.Log.Error("error", zap.Error(err))
+		makeResponse(w, http.StatusInternalServerError, err.Error())
+	}
+
 	message := fmt.Sprintf("Successfully load order %d !!!", number)
 	logger.Log.Info(message)
-	makeResponse(w, http.StatusOK, message)
+	makeResponse(w, http.StatusAccepted, message)
 }
 
 func (s *ServerViews) GetOrders(w http.ResponseWriter, r *http.Request) {

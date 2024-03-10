@@ -12,6 +12,7 @@ import (
 	"github.com/sebasttiano/Budgie/internal/logger"
 	"github.com/sebasttiano/Budgie/internal/service"
 	"github.com/sebasttiano/Budgie/internal/storage"
+	"github.com/sebasttiano/Budgie/internal/worker"
 	"go.uber.org/zap"
 	"net/http"
 	"sync"
@@ -24,7 +25,7 @@ type Server struct {
 	JWTWare *jwtmiddleware.JWTMiddleware
 }
 
-func NewServer(serverAddr string, store storage.Storer, secretKey string) *Server {
+func NewServer(serverAddr string, store storage.Storer, pool, awaitPool worker.Pool, secretKey string, accrualAddress string) *Server {
 	keyFunc := func(ctx context.Context) (interface{}, error) {
 		return []byte(secretKey), nil
 	}
@@ -40,8 +41,10 @@ func NewServer(serverAddr string, store storage.Storer, secretKey string) *Serve
 	}
 
 	return &Server{
-		srv:     &http.Server{Addr: serverAddr},
-		views:   handlers.NewServerViews(service.NewService(store, secretKey)),
+		srv: &http.Server{Addr: serverAddr},
+		views: handlers.NewServerViews(service.NewService(store,
+			&service.ServiceSettings{Key: secretKey, AccuralURL: accrualAddress, HTTPRetries: 3},
+			&service.ServicePools{MainPool: pool, AwaitPool: awaitPool})),
 		JWTWare: jwtmiddleware.New(jwtValidator.ValidateToken),
 	}
 }

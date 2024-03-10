@@ -98,9 +98,9 @@ func (s *ServerViews) UserLogin(w http.ResponseWriter, r *http.Request) {
 				logger.Log.Error("error login user: ", zap.Error(err))
 				makeResponse(w, http.StatusInternalServerError, "error: token creation failed, please try login later.")
 				return
-			case errors.Is(err, common.ErrWrongPassword):
+			case errors.Is(err, common.ErrWrongPassword) || errors.Is(err, service.ErrUserNotFound):
 				logger.Log.Error("error login user: ", zap.Error(err))
-				makeResponse(w, http.StatusBadRequest, "error: wrong password")
+				makeResponse(w, http.StatusUnauthorized, err.Error())
 				return
 			default:
 				logger.Log.Error("error login user:", zap.Error(err))
@@ -110,7 +110,9 @@ func (s *ServerViews) UserLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
 		makeResponse(w, http.StatusOK, "user authenticated")
+		return
 	}
+	makeResponse(w, http.StatusBadRequest, "user doesn`t exist")
 }
 
 func (s *ServerViews) UserGetBalance(w http.ResponseWriter, r *http.Request) {

@@ -9,7 +9,6 @@ import (
 	"github.com/sebasttiano/Budgie/internal/logger"
 	"github.com/sebasttiano/Budgie/internal/models"
 	"go.uber.org/zap"
-	"time"
 )
 
 var ErrDBNoRows = errors.New("sql: no rows in result set")
@@ -80,10 +79,10 @@ func (d *DBStorage) AddUser(ctx context.Context, user *models.User) error {
 		return err
 	}
 
-	sqlInsert := `INSERT INTO users (login, password, registered_at) VALUES ($1, $2, $3) RETURNING id`
+	sqlInsert := `INSERT INTO users (login, password) VALUES ($1, $2) RETURNING id`
 
 	var id int
-	if err := tx.GetContext(ctx, &id, sqlInsert, user.Login, hashedPassword, time.Now()); err != nil {
+	if err := tx.GetContext(ctx, &id, sqlInsert, user.Login, hashedPassword); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -95,7 +94,7 @@ func (d *DBStorage) AddUser(ctx context.Context, user *models.User) error {
 
 func (d *DBStorage) GetOrder(ctx context.Context, order *models.Order, number int) error {
 
-	sqlSelect := `SELECT id, user_id, status, action, accrual, upload_at, processed_at FROM orders WHERE id = $1`
+	sqlSelect := `SELECT id, user_id, status, action, accrual, upload_at FROM orders WHERE id = $1`
 
 	if err := d.conn.GetContext(ctx, order, sqlSelect, number); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -114,12 +113,12 @@ func (d *DBStorage) SetOrder(ctx context.Context, order *models.Order) error {
 		return err
 	}
 
-	sqlInsert := `INSERT INTO orders (id, user_id, status, action, accrual, upload_at)
-                      VALUES ($1, $2, $3, $4, $5, $6)
+	sqlInsert := `INSERT INTO orders (id, user_id, status, action, accrual)
+                      VALUES ($1, $2, $3, $4, $5)
                       ON CONFLICT (id) DO UPDATE
-                      SET status = excluded.status, processed_at = excluded.processed_at;`
+                      SET status = excluded.status, action = excluded.action, accrual = excluded.accrual, processed_at = now();`
 
-	if _, err := tx.ExecContext(ctx, sqlInsert, order.ID, order.UserID, order.Status, order.Action, order.Accrual, time.Now()); err != nil {
+	if _, err := tx.ExecContext(ctx, sqlInsert, order.ID, order.UserID, order.Status, order.Action, order.Accrual); err != nil {
 		tx.Rollback()
 		return err
 	}
