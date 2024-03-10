@@ -22,6 +22,8 @@ type Storer interface {
 	SetOrder(ctx context.Context, order *models.Order) error
 	GetAllUserOrders(ctx context.Context, userID int) ([]*models.Order, error)
 	SetBalance(ctx context.Context, balance *models.UserBalance) error
+	GetBalance(ctx context.Context, balance *models.UserBalance) error
+	GetAllUserWithdrawals(ctx context.Context, userID int) ([]*models.WithdrawnResponse, error)
 }
 
 func (d *DBStorage) GetKey() (string, error) {
@@ -167,15 +169,38 @@ func (d *DBStorage) SetBalance(ctx context.Context, balance *models.UserBalance)
 	if err != nil {
 		return err
 	}
-	fmt.Println(balance)
+
 	sqlInsert := `INSERT INTO balance (user_id, balance, withdrawn)
 					VALUES ($1, $2, $3)
 					ON CONFLICT (user_id) DO UPDATE 
-					SET balance = balance.balance + excluded.balance, withdrawn = balance.withdrawn + excluded.withdrawn`
+					SET balance = balance.balance + excluded.balance - excluded.withdrawn, withdrawn = balance.withdrawn + excluded.withdrawn`
 
 	if _, err := tx.ExecContext(ctx, sqlInsert, balance.UserID, balance.Balance, balance.Withdrawn); err != nil {
 		tx.Rollback()
 		return err
 	}
 	return tx.Commit()
+}
+
+func (d *DBStorage) GetBalance(ctx context.Context, balance *models.UserBalance) error {
+
+	sqlSelect := `SELECT balance.balance, balance.withdrawn FROM balance WHERE user_id = $1`
+	if err := d.conn.GetContext(ctx, balance, sqlSelect, balance.UserID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *DBStorage) GetAllUserWithdrawals(ctx context.Context, userID int) ([]*models.WithdrawnResponse, error) {
+
+	var allWithdrawals []*models.WithdrawnResponse
+	sqlSelect := `SELECT id, accrual, processed_at
+					FROM orders
+					WHERE user_id = $1 AND status = $2 AND action = $3 
+					ORDER BY processed_at`
+
+	if err := d.conn.SelectContext(ctx, &allWithdrawals, sqlSelect, userID, models.OrderStatusProcessed, models.OrderActionWithdraw); err != nil {
+		return nil, err
+	}
+	return allWithdrawals, nil
 }

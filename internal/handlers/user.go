@@ -115,10 +115,6 @@ func (s *ServerViews) UserLogin(w http.ResponseWriter, r *http.Request) {
 	makeResponse(w, http.StatusBadRequest, "user doesn`t exist")
 }
 
-func (s *ServerViews) UserGetBalance(w http.ResponseWriter, r *http.Request) {
-
-}
-
 func (s *ServerViews) ValidateUser(user *models.User, r *http.Request) error {
 
 	logger.Log.Debug("decoding incoming request")

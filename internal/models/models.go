@@ -33,11 +33,22 @@ type Order struct {
 }
 
 type UserBalance struct {
-	UserID    int     `db:"user_id"`
-	Balance   float32 `db:"balance,omitempty"`
-	Withdrawn float32 `db:"withdrawn,omitempty"`
+	UserID    int     `db:"user_id" json:"-"`
+	Balance   float32 `db:"balance,omitempty" json:"current"`
+	Withdrawn float32 `db:"withdrawn,omitempty" jsonn:"withdrawn"`
 }
 
 type Secret struct {
 	Secret string
+}
+
+type WithdrawnRequest struct {
+	Order string  `json:"order" valid:"required,type(string)"`
+	Sum   float32 `json:"sum" valid:"required,type(float32)"`
+}
+
+type WithdrawnResponse struct {
+	Order       string    `json:"order" db:"id"`
+	Sum         float32   `json:"sum" db:"accrual"`
+	ProcessedAt time.Time `json:"processed_at" db:"processed_at"`
 }

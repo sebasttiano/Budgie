@@ -59,7 +59,7 @@ func (s *Server) InitRouter() {
 		r.Method(http.MethodPost, "/login", http.HandlerFunc(s.views.UserLogin))
 		r.Method(http.MethodPost, "/orders", s.JWTWare.CheckJWT(http.HandlerFunc(s.views.UploadOrder)))
 		r.Method(http.MethodGet, "/orders", s.JWTWare.CheckJWT(http.HandlerFunc(s.views.GetOrders)))
-		r.Route("/balance/", func(r chi.Router) {
+		r.Route("/balance", func(r chi.Router) {
 			r.Method(http.MethodGet, "/", s.JWTWare.CheckJWT(http.HandlerFunc(s.views.GetBalance)))
 			r.Method(http.MethodPost, "/withdraw", s.JWTWare.CheckJWT(http.HandlerFunc(s.views.WithdrawBalance)))
 		})

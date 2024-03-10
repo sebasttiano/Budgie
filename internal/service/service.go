@@ -20,6 +20,7 @@ var (
 	ErrOrderAlreadyExist     = errors.New("order already exist")
 	ErrOrderSave             = errors.New("order save failed")
 	ErrNoUserOrders          = errors.New("user has no any orders")
+	ErrNoUserWithdrawals     = errors.New("user has no any withdrawals")
 )
 
 type Authenticator interface {
@@ -136,4 +137,31 @@ func (s *Service) GetAllUserOrders(ctx context.Context, userID int) ([]*models.O
 
 	}
 	return userOrders, nil
+}
+
+func (s *Service) GetBalance(ctx context.Context, userID int) (*models.UserBalance, error) {
+
+	balance := &models.UserBalance{UserID: userID}
+	if err := s.Store.GetBalance(ctx, balance); err != nil {
+		return nil, err
+	}
+	return balance, nil
+}
+
+func (s *Service) SetBalance(ctx context.Context, balance *models.UserBalance) error {
+
+	return s.Store.SetBalance(ctx, balance)
+}
+
+func (s *Service) GetAllUserWithdrawals(ctx context.Context, userID int) ([]*models.WithdrawnResponse, error) {
+	userWithdrawals, err := s.Store.GetAllUserWithdrawals(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(userWithdrawals) == 0 {
+		return nil, fmt.Errorf("%w, user id: %d", ErrNoUserWithdrawals, userID)
+
+	}
+	return userWithdrawals, nil
 }
