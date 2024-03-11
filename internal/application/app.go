@@ -46,6 +46,11 @@ func Run() {
 		os.Exit(1)
 	}
 	store, err = storage.NewDBStorage(conn, true, 3, 1)
+	if err != nil {
+		logger.Log.Error("init storage failed", zap.Error(err))
+		return
+	}
+
 	if cfg.SecretKey == "" {
 		cfg.SecretKey, err = store.GetKey()
 		if err != nil {

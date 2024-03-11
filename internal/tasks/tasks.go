@@ -36,8 +36,8 @@ type ProcessOrder struct {
 	awaitPool   worker.Pool
 }
 
-func NewProcessOrder(baseUrl string, retries int, order string, store storage.Storer, awaitPool worker.Pool) *ProcessOrder {
-	return &ProcessOrder{c: common.NewHTTPClient(baseUrl, retries), orderNumber: order, store: store, awaitPool: awaitPool}
+func NewProcessOrder(baseURL string, retries int, order string, store storage.Storer, awaitPool worker.Pool) *ProcessOrder {
+	return &ProcessOrder{c: common.NewHTTPClient(baseURL, retries), orderNumber: order, store: store, awaitPool: awaitPool}
 }
 
 func (p *ProcessOrder) Execute() error {

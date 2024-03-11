@@ -23,7 +23,7 @@ type User struct {
 }
 
 type Order struct {
-	ID          string    `db:"id" json:"number,omitempty,type(string)"`
+	ID          string    `db:"id" json:"number,omitempty"`
 	UserID      int       `db:"user_id,omitempty" json:"-"`
 	Action      string    `db:"action,omitempty" json:"-"`
 	Status      string    `db:"status,omitempty" json:"status"`

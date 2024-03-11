@@ -97,7 +97,7 @@ func (wp *WorkerPool) startWorkers() {
 					}
 					logger.Log.Info(fmt.Sprintf("worker pool: worker #%d starts to execute tasks", workerNum))
 					if err := task.Execute(); err != nil {
-						logger.Log.Error(fmt.Sprintf("worker pool: worker #%d failed"), zap.Error(err))
+						logger.Log.Error(fmt.Sprintf("worker pool: worker #%d failed", workerNum), zap.Error(err))
 						task.OnFailure(err)
 					}
 				}
@@ -186,7 +186,7 @@ func (wp *WaitingPool) startWorkers() {
 						}
 						logger.Log.Info(fmt.Sprintf("waiting pool: worker #%d starts to execute tasks", workerNum))
 						if err := task.Execute(); err != nil {
-							logger.Log.Error(fmt.Sprintf("waiting pool: worker #%d failed"), zap.Error(err))
+							logger.Log.Error(fmt.Sprintf("waiting pool: worker #%d failed", workerNum), zap.Error(err))
 							task.OnFailure(err)
 						}
 					default:

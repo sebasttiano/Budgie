@@ -110,7 +110,7 @@ func (s *Service) CheckOrder(ctx context.Context, number string, user int) error
 func (s *Service) SaveOrder(ctx context.Context, o *models.Order) error {
 
 	if err := s.Store.SetOrder(ctx, o); err != nil {
-		return fmt.Errorf("order with number %d error: %w. reason: %v", o.ID, ErrOrderSave, err)
+		return fmt.Errorf("order with number %s error: %w. reason: %v", o.ID, ErrOrderSave, err)
 	}
 
 	return nil
