@@ -10,7 +10,6 @@ import (
 	"github.com/sebasttiano/Budgie/internal/storage"
 	"github.com/sebasttiano/Budgie/internal/tasks"
 	"github.com/sebasttiano/Budgie/internal/worker"
-	"strconv"
 )
 
 var (
@@ -91,7 +90,7 @@ func (s *Service) Login(ctx context.Context, u *models.User) (string, error) {
 	return common.BuildJWTString(u.ID, s.settings.Key)
 }
 
-func (s *Service) CheckOrder(ctx context.Context, number int, user int) error {
+func (s *Service) CheckOrder(ctx context.Context, number string, user int) error {
 
 	var order models.Order
 	if err := s.Store.GetOrder(ctx, &order, number); err != nil {
@@ -119,7 +118,7 @@ func (s *Service) SaveOrder(ctx context.Context, o *models.Order) error {
 
 func (s *Service) ProccessOrder(ctx context.Context, o *models.Order) error {
 
-	task := tasks.NewProcessOrder(s.settings.AccuralURL, s.settings.HTTPRetries, strconv.Itoa(o.ID), s.Store, s.pools.AwaitPool)
+	task := tasks.NewProcessOrder(s.settings.AccuralURL, s.settings.HTTPRetries, o.ID, s.Store, s.pools.AwaitPool)
 	s.pools.MainPool.AddWork(task)
 
 	return nil

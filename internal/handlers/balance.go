@@ -12,7 +12,6 @@ import (
 	"github.com/sebasttiano/Budgie/internal/service"
 	"go.uber.org/zap"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -88,10 +87,10 @@ func (s *ServerViews) WithdrawBalance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	orderNumber, _ := strconv.Atoi(withdrawn.Order)
+	//orderNumber, _ := strconv.Atoi(withdrawn.Order)
 
 	order := &models.Order{
-		ID:      orderNumber,
+		ID:      withdrawn.Order,
 		UserID:  payload.UserID,
 		Status:  models.OrderStatusProcessed,
 		Action:  models.OrderActionWithdraw,
@@ -110,7 +109,7 @@ func (s *ServerViews) WithdrawBalance(w http.ResponseWriter, r *http.Request) {
 		makeResponse(w, http.StatusInternalServerError, "failed to save new balance")
 		return
 	}
-	message := fmt.Sprintf("successfully make withdraw for order %d !!!", orderNumber)
+	message := fmt.Sprintf("successfully make withdraw for order %s !!!", withdrawn.Order)
 	logger.Log.Info(message)
 	makeResponse(w, http.StatusOK, message)
 }
@@ -159,12 +158,7 @@ func (s *ServerViews) ValidateBalance(ctx context.Context, withdrawn *models.Wit
 		return fmt.Errorf("%w: check you input: %v", ErrOrderValidationNumber, err)
 	}
 
-	orderNumber, err := strconv.Atoi(withdrawn.Order)
-	if err != nil {
-		return fmt.Errorf("%w: check you input: %v", ErrOrderValidationNumber, err)
-	}
-
-	if err := s.serv.CheckOrder(ctx, orderNumber, userID); err != nil {
+	if err := s.serv.CheckOrder(ctx, withdrawn.Order, userID); err != nil {
 		return err
 	}
 

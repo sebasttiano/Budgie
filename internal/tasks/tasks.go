@@ -11,7 +11,6 @@ import (
 	"github.com/sebasttiano/Budgie/internal/worker"
 	"go.uber.org/zap"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -38,7 +37,7 @@ type ProcessOrder struct {
 }
 
 func NewProcessOrder(baseUrl string, retries int, order string, store storage.Storer, awaitPool worker.Pool) *ProcessOrder {
-	return &ProcessOrder{c: common.NewHTTPClient("http://"+baseUrl, retries), orderNumber: order, store: store, awaitPool: awaitPool}
+	return &ProcessOrder{c: common.NewHTTPClient(baseUrl, retries), orderNumber: order, store: store, awaitPool: awaitPool}
 }
 
 func (p *ProcessOrder) Execute() error {
@@ -51,15 +50,14 @@ func (p *ProcessOrder) Execute() error {
 		return nil
 	}
 
-	orderNumber, _ := strconv.Atoi(p.orderNumber)
-	order := &models.Order{ID: orderNumber, Accrual: 0.00, Action: models.OrderActionAdd}
+	order := &models.Order{ID: p.orderNumber, Accrual: 0.00, Action: models.OrderActionAdd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	switch resp.StatusCode() {
 	case http.StatusNoContent:
-		logger.Log.Info(fmt.Sprintf("order %d has not been uploaded yet to accrual system. awaiting...", orderNumber))
+		logger.Log.Info(fmt.Sprintf("order %s has not been uploaded yet to accrual system. awaiting...", p.orderNumber))
 		p.awaitPool.AddWork(p)
 		return nil
 	case http.StatusOK:
@@ -69,16 +67,16 @@ func (p *ProcessOrder) Execute() error {
 			if accrual.Accrual != 0 {
 				order.Accrual = accrual.Accrual
 			}
-			logger.Log.Debug(fmt.Sprintf("order %d has been processed. accrual equal to %f", orderNumber, accrual.Accrual))
+			logger.Log.Debug(fmt.Sprintf("order %s has been processed. accrual equal to %f", p.orderNumber, accrual.Accrual))
 		case AccrualStatusInvalid:
 			order.Status = models.OrderStatusInvalid
 		case AccrualStatusProcessing:
 			order.Status = models.OrderStatusProcessing
-			logger.Log.Debug(fmt.Sprintf("order %d is processing in the accrual system at the monent. awaiting...", orderNumber))
+			logger.Log.Debug(fmt.Sprintf("order %s is processing in the accrual system at the monent. awaiting...", p.orderNumber))
 			p.awaitPool.AddWork(p)
 		case AccrualStatusRegistered:
 			order.Status = models.OrderStatusProcessing
-			logger.Log.Debug(fmt.Sprintf("order %d has been registered in the accrual system. awaiting...", orderNumber))
+			logger.Log.Debug(fmt.Sprintf("order %s has been registered in the accrual system. awaiting...", p.orderNumber))
 			p.awaitPool.AddWork(p)
 		}
 
@@ -95,8 +93,7 @@ func (p *ProcessOrder) Execute() error {
 
 func (p *ProcessOrder) OnFailure(err error) {
 
-	orderNumber, _ := strconv.Atoi(p.orderNumber)
-	order := &models.Order{ID: orderNumber, Accrual: 0.00, Action: models.OrderActionAdd}
+	order := &models.Order{ID: p.orderNumber, Accrual: 0.00, Action: models.OrderActionAdd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

@@ -45,7 +45,7 @@ func NewServer(serverAddr string, store storage.Storer, pool, awaitPool worker.P
 		views: handlers.NewServerViews(service.NewService(store,
 			&service.ServiceSettings{Key: secretKey, AccuralURL: accrualAddress, HTTPRetries: 3},
 			&service.ServicePools{MainPool: pool, AwaitPool: awaitPool})),
-		JWTWare: jwtmiddleware.New(jwtValidator.ValidateToken),
+		JWTWare: jwtmiddleware.New(jwtValidator.ValidateToken, jwtmiddleware.WithErrorHandler(handlers.CustomJWTErrorHandler)),
 	}
 }
 

@@ -18,7 +18,7 @@ type Storer interface {
 	GetUser(ctx context.Context, user *models.User) error
 	AddUser(ctx context.Context, user *models.User) error
 	GetKey() (string, error)
-	GetOrder(ctx context.Context, order *models.Order, number int) error
+	GetOrder(ctx context.Context, order *models.Order, number string) error
 	SetOrder(ctx context.Context, order *models.Order) error
 	GetAllUserOrders(ctx context.Context, userID int) ([]*models.Order, error)
 	SetBalance(ctx context.Context, balance *models.UserBalance) error
@@ -103,7 +103,7 @@ func (d *DBStorage) AddUser(ctx context.Context, user *models.User) error {
 	return nil
 }
 
-func (d *DBStorage) GetOrder(ctx context.Context, order *models.Order, number int) error {
+func (d *DBStorage) GetOrder(ctx context.Context, order *models.Order, number string) error {
 
 	sqlSelect := `SELECT id, user_id, status, action, accrual, upload_at FROM orders WHERE id = $1`
 

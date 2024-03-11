@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -82,7 +81,7 @@ func (s *ServerViews) UploadOrder(w http.ResponseWriter, r *http.Request) {
 		makeResponse(w, http.StatusInternalServerError, err.Error())
 	}
 
-	message := fmt.Sprintf("Successfully load order %d !!!", number)
+	message := fmt.Sprintf("successfully load order %s !!!", number)
 	logger.Log.Info(message)
 	makeResponse(w, http.StatusAccepted, message)
 }
@@ -112,27 +111,22 @@ func (s *ServerViews) GetOrders(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *ServerViews) ValidateAndCheckOrder(ctx context.Context, r *http.Request, user int) (int, error) {
+func (s *ServerViews) ValidateAndCheckOrder(ctx context.Context, r *http.Request, user int) (string, error) {
 
 	byteArray, err := io.ReadAll(r.Body)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	r.Body.Close()
 
 	orderStr := string(byteArray[:])
 
-	order, err := strconv.Atoi(orderStr)
-	if err != nil {
-		return 0, fmt.Errorf("%w: failed to convert order to int: %v", ErrOrderValidationRequest, err)
-	}
-
 	if err := common.ValidateLuhnSum(orderStr); err != nil {
-		return 0, fmt.Errorf("%w: check you input: %v", ErrOrderValidationNumber, err)
+		return "", fmt.Errorf("%w: check you input: %v", ErrOrderValidationNumber, err)
 	}
 
-	if err := s.serv.CheckOrder(ctx, order, user); err != nil {
-		return 0, err
+	if err := s.serv.CheckOrder(ctx, orderStr, user); err != nil {
+		return "", err
 	}
-	return order, nil
+	return orderStr, nil
 }
